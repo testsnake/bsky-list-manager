@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/main.ts",
+    "dev": "tsx src/main.ts | pino-pretty",
     "dev:scan": "tsx src/main.ts --scan",
     "start": "node build/main.js",
     "start:scan": "node build/main.js --scan",
@@ -21,6 +21,7 @@
     "@atproto/api": "^0.18.18",
     "better-sqlite3": "^12.9.0",
     "dotenv": "^17.2.3",
+    "pino": "^10.3.1",
     "sharp": "^0.34.5",
     "ws": "^8.20.0"
   },

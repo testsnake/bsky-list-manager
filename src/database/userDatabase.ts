@@ -1,16 +1,15 @@
 import Database from "better-sqlite3";
-import { userEntry } from "./types";
+import { UserEntry } from "../types";
+import { getDb } from "./base";
 import path from "path";
 
-const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), "lists.db");
+const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), "user.db");
 
 class UserDatabase {
-    private readonly db: Database.Database;
+    private readonly db = getDb();
     private static instance: UserDatabase | null = null;
 
     private constructor() {
-        this.db = new Database(DB_PATH);
-        this.db.pragma("journal_mode = WAL");
         this.initialize();
     }
 
@@ -34,14 +33,11 @@ class UserDatabase {
         return UserDatabase.instance;
     }
 
-    private rowToEntry(row: any): userEntry {
-        return {
-            ...row,
-            onAnyList: row.onAnyList === 1,
-        };
+    private rowToEntry(row: any): UserEntry {
+        return { ...row };
     }
 
-    public upsert(entry: userEntry): void {
+    public upsert(entry: UserEntry): void {
         const stmt = this.db.prepare(`
             INSERT INTO user_entries (did, avatarSize, profileHash, onAnyList, lastActivity, lastUpdate)
             VALUES (@did, @avatarSize, @profileHash, @onAnyList, @lastActivity, @lastUpdate)
@@ -53,19 +49,19 @@ class UserDatabase {
                 lastUpdate   = excluded.lastUpdate
         `);
 
-        stmt.run({ ...entry, onAnyList: entry.onAnyList ? 1 : 0 });
+        stmt.run(entry);
     }
 
-    public insert(entry: userEntry): void {
+    public insert(entry: UserEntry): void {
         const stmt = this.db.prepare(`
             INSERT INTO user_entries (did, avatarSize, profileHash, onAnyList, lastActivity, lastUpdate)
             VALUES (@did, @avatarSize, @profileHash, @onAnyList, @lastActivity, @lastUpdate)
         `);
 
-        stmt.run({ ...entry, onAnyList: entry.onAnyList ? 1 : 0 });
+        stmt.run(entry);
     }
 
-    public update(did: string, fields: Partial<Omit<userEntry, "did">>): boolean {
+    public update(did: string, fields: Partial<Omit<UserEntry, "did">>): boolean {
         const allowed = ["avatarSize", "profileHash", "onAnyList", "lastActivity", "lastUpdate"] as const;
         const keys = Object.keys(fields).filter((k) => allowed.includes(k as any));
 
@@ -74,16 +70,11 @@ class UserDatabase {
         const setClauses = keys.map((k) => `${k} = @${k}`).join(", ");
         const stmt = this.db.prepare(`UPDATE user_entries SET ${setClauses} WHERE did = @did`);
 
-        const params: Record<string, any> = { did, ...fields };
-        if (typeof fields.onAnyList === "boolean") {
-            params.onAnyList = fields.onAnyList ? 1 : 0;
-        }
-
-        const result = stmt.run(params);
+        const result = stmt.run({ did, ...fields });
         return result.changes > 0;
     }
 
-    public findByDid(did: string): userEntry | undefined {
+    public findByDid(did: string): UserEntry | undefined {
         const stmt = this.db.prepare(`SELECT * FROM user_entries WHERE did = ?`);
         const row = stmt.get(did);
         return row ? this.rowToEntry(row) : undefined;
@@ -95,9 +86,30 @@ class UserDatabase {
         return result.changes > 0;
     }
 
-    public getAll(): userEntry[] {
+    public getAll(): UserEntry[] {
         const stmt = this.db.prepare(`SELECT * FROM user_entries`);
         return stmt.all().map(this.rowToEntry);
+    }
+
+    public incrementOnAnyList(did: string): boolean {
+        const stmt = this.db.prepare(`
+        UPDATE user_entries SET onAnyList = onAnyList + 1 WHERE did = ?
+    `);
+        return stmt.run(did).changes > 0;
+    }
+
+    public decrementOnAnyList(did: string): boolean {
+        const stmt = this.db.prepare(`
+        UPDATE user_entries SET onAnyList = MAX(0, onAnyList - 1) WHERE did = ?
+    `);
+        return stmt.run(did).changes > 0;
+    }
+
+    public touchLastUpdate(did: string): boolean {
+        const stmt = this.db.prepare(`
+        UPDATE user_entries SET lastUpdate = ? WHERE did = ?
+    `);
+        return stmt.run(Date.now(), did).changes > 0;
     }
 
     public close(): void {

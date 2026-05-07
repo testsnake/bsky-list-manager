@@ -1,11 +1,13 @@
-export interface listEntry {
-    id: number;
+import type { InputSchema } from "@atproto/api/src/client/types/com/atproto/repo/applyWrites";
+
+export interface ListEntry {
+    id?: number;
     did: string;
     listUri: string;
     rkey?: string;
 }
 
-export interface userEntry {
+export interface UserEntry {
     // user identifier
     did: string;
     // used to check if avatar has changed
@@ -13,9 +15,28 @@ export interface userEntry {
     // used to check if profile has changed
     profileHash: string | null;
     // on any list ran by bot, quick lookup
-    onAnyList: boolean;
+    onAnyList: number;
     // last monitored activity timestamp according to pds
     lastActivity: number;
     // last time user updated in db
     lastUpdate: number;
 }
+
+export enum ListOperation {
+    createRecord = 0,
+    updateRecord = 1,
+    deleteRecord = 2,
+}
+
+export interface ListQueueEntry {
+    id: number;
+    listUri: string;
+    operation: ListOperation;
+    did?: string;
+    rkey?: string;
+    nextTry: number;
+    tries: number;
+}
+
+export type RepoWrites = InputSchema["writes"];
+

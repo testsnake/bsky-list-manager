@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { listEntry } from "./types";
+import { ListEntry } from "../types";
 import path from "path";
 
 const DB_PATH = process.env.DB_PATH ?? path.join(process.cwd(), "lists.db");
@@ -33,7 +33,7 @@ class ListDatabase {
         return ListDatabase.instance;
     }
 
-    public insert(entry: Omit<listEntry, "id">): listEntry {
+    public insert(entry: Omit<ListEntry, "id">): ListEntry {
         const stmt = this.db.prepare(`
             INSERT INTO list_entries (did, listUri, rkey)
             VALUES (@did, @listUri, @rkey)
@@ -71,36 +71,44 @@ class ListDatabase {
         return result.changes;
     }
 
-    public findByDid(did: string): listEntry[] {
-        const stmt = this.db.prepare<[string], listEntry>(`
+    public removeByRkeyAndListUri(rkey: string, listUri: string): number {
+        const stmt = this.db.prepare(`
+            DELETE FROM list_entries WHERE rkey = ? AND listUri = ?
+        `);
+        const result = stmt.run(rkey);
+        return result.changes;
+    }
+
+    public findByDid(did: string): ListEntry[] {
+        const stmt = this.db.prepare<[string], ListEntry>(`
             SELECT id, did, listUri, rkey FROM list_entries WHERE did = ?
         `);
         return stmt.all(did);
     }
 
-    public findById(id: number): listEntry | undefined {
-        const stmt = this.db.prepare<[number], listEntry>(`
+    public findById(id: number): ListEntry | undefined {
+        const stmt = this.db.prepare<[number], ListEntry>(`
             SELECT id, did, listUri, rkey FROM list_entries WHERE id = ?
         `);
         return stmt.get(id);
     }
 
-    public findByListUri(listUri: string): listEntry[] {
-        const stmt = this.db.prepare<[string], listEntry>(`
+    public findByListUri(listUri: string): ListEntry[] {
+        const stmt = this.db.prepare<[string], ListEntry>(`
             SELECT id, did, listUri, rkey FROM list_entries WHERE listUri = ?
         `);
         return stmt.all(listUri);
     }
 
-    public findByDidAndListUri(did: string, listUri: string): listEntry[] {
-        const stmt = this.db.prepare<[string, string], listEntry>(`
+    public findByDidAndListUri(did: string, listUri: string): ListEntry[] {
+        const stmt = this.db.prepare<[string, string], ListEntry>(`
             SELECT id, did, listUri, rkey FROM list_entries WHERE did = ? AND listUri = ?
         `);
         return stmt.all(did, listUri);
     }
 
-    public getAll(): listEntry[] {
-        const stmt = this.db.prepare<[], listEntry>(`
+    public getAll(): ListEntry[] {
+        const stmt = this.db.prepare<[], ListEntry>(`
             SELECT id, did, listUri, rkey FROM list_entries
         `);
         return stmt.all();
