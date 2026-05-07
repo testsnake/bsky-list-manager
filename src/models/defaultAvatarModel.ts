@@ -5,25 +5,20 @@ import { checkUserAvatar } from "./defaultAvatarModel/checkUser";
 
 export class defaultAvatarModel extends BaseProfileModel {
 
-    private listUri: string;
     constructor(list: string) {
-        super();
-        this.listUri = list;
+        super(list);
     }
 
-    async testProfile(param: userTestParam): Promise<ListEntry | null> {
+    async testProfile(param: userTestParam): Promise<boolean> {
         if (!param.listManager) {
-            return null;
+            throw new Error("List manager is not initialized");
         }
 
         const results = await checkUserAvatar({ agent: param.listManager.getAgent(), user: param.user, did: param.did });
 
-        if (results.result === 1) {
-            return {
-                did: param.did,
-                listUri: this.listUri
-            };
+        if (results.result === 1 || results.result === 0) {
+            return true;
         }
-        return null;
+        return false;
     }
 }

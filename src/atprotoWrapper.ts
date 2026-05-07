@@ -5,7 +5,6 @@ import UserDatabase from "./database/userDatabase";
 import { logger } from "./logger";
 import ListQueueDatabase from "./database/listQueueDatabase";
 
-
 export class AtprotoWrapper {
     private agent: AtpAgent;
 
@@ -25,10 +24,43 @@ export class AtprotoWrapper {
         });
     }
 
+    removeUserFromListQueue(did: string, listUri: string, rkey: string): void {
+        const listQueueDb = ListQueueDatabase.getInstance();
+        listQueueDb.enqueue({
+            listUri,
+            operation: ListOperation.deleteRecord,
+            did,
+            rkey,
+            nextTry: Date.now(),
+            tries: 0,
+        });
+    }
+
+    async getAndProcessQueueItems(): Promise<void> {
+        const listQueueDb = ListQueueDatabase.getInstance();
+        const dueItems = listQueueDb.getDue(Date.now(), 100);
+
+        if (dueItems.length === 0) {
+            return;
+        }
+
+        try {
+            await this.processQueueItems(dueItems);
+            for (const item of dueItems) {
+                listQueueDb.dequeue(item.id);
+            }
+        } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            logger.error(`Error processing queue items: ${error.message} - ${error.stack}`);
+            for (const item of dueItems) {
+                listQueueDb.recordAttempt(item.id, Date.now() + 5 * 60 * 1000); // retry after 5 minutes
+            }
+        }
+    }
 
     async processQueueItems(items: ListQueueEntry[]): Promise<void> {
         let writes: RepoWrites = [];
-        
+
         const repodid = this.agent.session?.did;
 
         for (const item of items) {
@@ -38,17 +70,12 @@ export class AtprotoWrapper {
                     $type: "com.atproto.repo.applyWrites#create",
                     collection: "app.bsky.graph.listitem",
                     value: {
-                        repo: repodid,
-                        collection: "app.bsky.graph.listitem",
-                        value: {
-                            $type: "app.bsky.graph.listitem",
-                            list: item.listUri,
-                            subject: item.did,
-                            createdAt: new Date().toISOString(),
-                    }
+                        $type: "app.bsky.graph.listitem",
+                        list: item.listUri,
+                        subject: item.did,
+                        createdAt: new Date().toISOString(),
                     },
                 });
-
             } else if (item.operation === 1) {
                 throw new Error("update operation not supported");
             } else if (item.operation === 2) {
@@ -60,9 +87,7 @@ export class AtprotoWrapper {
             }
         }
 
-        const res = await this.agent.com.atproto.repo.applyWrites(
-            { repo: repodid!, writes }
-        );
+        const res = await this.agent.com.atproto.repo.applyWrites({ repo: repodid!, writes });
 
         if (!res.success) {
             throw new Error("Failed to apply writes");
@@ -114,5 +139,4 @@ export class AtprotoWrapper {
     getAgent(): AtpAgent {
         return this.agent;
     }
-
 }

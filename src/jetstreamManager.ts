@@ -56,7 +56,7 @@ export class JetstreamManager {
             return;
         }
 
-        return this.modelManager.scanProfileWithOnlyDid({ did: event.did });
+        // return this.modelManager.scanProfileWithOnlyDid({ did: event.did });
     }
     handleIdentityEvent(event: JetstreamIdentityEvent) {
         // logger.error(`Received identity event, which is not currently handled: ${JSON.stringify(event)}`);

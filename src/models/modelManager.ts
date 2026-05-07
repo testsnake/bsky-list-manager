@@ -7,15 +7,18 @@ import { rexegModelConfig } from "../types";
 import { logger } from "../logger";
 import { AtprotoWrapper } from "../atprotoWrapper";
 import { AppBskyActorProfile } from "@atproto/api";
+import ListDatabase from "../database/listDatabase";
 
 export class ModelManager {
     private models: BaseProfileModel[] = [];
     private AtprotoWrapper: AtprotoWrapper;
+    private listDatabase: ListDatabase;
 
     // TODO: make this dynamic, i dont wanna rn
     constructor(atprotoWrapper: AtprotoWrapper) {
         this.AtprotoWrapper = atprotoWrapper;
         this.initializeModels();
+        this.listDatabase = ListDatabase.getInstance();
     }
 
     private initializeModels() {
@@ -48,7 +51,11 @@ export class ModelManager {
         if (!param.listManager) {
             param.listManager = this.AtprotoWrapper;
         }
-        return Promise.all(this.models.map((model) => model.consumeProfileUpdate(param)))
+
+        // check for any list entries that match
+        const existingEntries = this.listDatabase.findByDid(param.did);
+
+        return Promise.all(this.models.map((model) => model.consumeProfileUpdate(param, existingEntries)))
             .then(() => {})
             .catch((err) => {
                 logger.error(`Error scanning profile for ${param.did}: ${err} - ${err.stack}`);

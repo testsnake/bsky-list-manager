@@ -10,18 +10,31 @@ export interface userTestParam {
     handle?: string;
 }
 
-export abstract class BaseProfileModel {
-    constructor() {}
 
-    async consumeProfileUpdate(param: userTestParam): Promise<void> {
-        const entry = await this.testProfile(param);
-        if (entry) {
-            param.listManager?.addUserToListQueue(entry.did, entry.listUri);
-            logger.info(`User ${entry.did} matched model ${this.constructor.name}, added to queue for list ${entry.listUri}`);
+
+export abstract class BaseProfileModel {
+    protected listUri: string;
+    constructor(listUri: string) {
+        this.listUri = listUri;
+    }
+
+    async consumeProfileUpdate(param: userTestParam, existingEntries: ListEntry[]): Promise<void> {
+        const matched = await this.testProfile(param);
+
+        const alreadyInList = existingEntries.some((entry) => entry.listUri === this.listUri);
+
+        if (matched && !alreadyInList) {
+            logger.info(`User ${param.did} matched model for list ${this.listUri}, adding to list queue`);
+            param.listManager?.addUserToListQueue(param.did, this.listUri);
+        } else if (!matched && alreadyInList) {
+            logger.info(`User ${param.did} no longer matches model for list ${this.listUri}, adding to removal queue`);
+            param.listManager?.removeUserFromListQueue(param.did, this.listUri, existingEntries.find((entry) => entry.listUri === this.listUri)?.rkey ?? "");
+        } else {
+            // logger.debug(`User ${param.did} matched=${matched} alreadyInList=${alreadyInList} for list ${this.listUri}, no action taken`);
         }
     }
 
-    abstract testProfile(param: userTestParam): Promise<ListEntry | null>;
+    abstract testProfile(param: userTestParam): Promise<boolean>;
 
     getSubscribedJetstreamCollections(): string[] {
         return ["app.bsky.actor.profile"];
