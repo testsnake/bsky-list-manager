@@ -1,10 +1,9 @@
-/* wrapper that accounts for rate limits and retries automatically */
-
 import { AtpAgent } from "@atproto/api";
-import { ListEntry, ListQueueEntry, RepoWrites } from "./types";
+import { ListOperation, ListQueueEntry, RepoWrites } from "./types";
 import ListDatabase from "./database/listDatabase";
 import UserDatabase from "./database/userDatabase";
 import { logger } from "./logger";
+import ListQueueDatabase from "./database/listQueueDatabase";
 
 
 export class AtprotoWrapper {
@@ -12,6 +11,18 @@ export class AtprotoWrapper {
 
     constructor(agent: AtpAgent) {
         this.agent = agent;
+    }
+
+    addUserToListQueue(did: string, listUri: string): void {
+        const listQueueDb = ListQueueDatabase.getInstance();
+        listQueueDb.enqueue({
+            listUri,
+            operation: ListOperation.createRecord,
+            did,
+            rkey: null,
+            nextTry: Date.now(),
+            tries: 0,
+        });
     }
 
 
@@ -98,6 +109,10 @@ export class AtprotoWrapper {
         }
 
         logger.debug(`Successfully processed ${items.length} queue items`);
+    }
+
+    getAgent(): AtpAgent {
+        return this.agent;
     }
 
 }

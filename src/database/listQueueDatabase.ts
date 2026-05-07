@@ -37,6 +37,7 @@ class ListQueueDatabase {
     }
 
     public enqueue(entry: Omit<ListQueueEntry, "id">): ListQueueEntry {
+
         const stmt = this.db.prepare(`
             INSERT INTO list_queue (listUri, operation, did, rkey, nextTry, tries)
             VALUES (@listUri, @operation, @did, @rkey, @nextTry, @tries)

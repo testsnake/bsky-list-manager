@@ -32,11 +32,19 @@ export interface ListQueueEntry {
     id: number;
     listUri: string;
     operation: ListOperation;
-    did?: string;
-    rkey?: string;
+    did?: string | null;
+    rkey?: string | null;
     nextTry: number;
     tries: number;
 }
 
 export type RepoWrites = InputSchema["writes"];
 
+export interface rexegModelConfig {
+    listUri: string;
+    regex: RegExp;
+    inHandle?: boolean;
+    inBio?: boolean;
+    inDisplayName?: boolean;
+    inPronouns?: boolean;
+}

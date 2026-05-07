@@ -1,0 +1,17 @@
+{
+    "regexModel": {
+        "filters": [
+            {
+                "listUri": "at://did:plc:000000000000000/app.bsky.graph.list/000000000",
+                "regex": "/bad word/",
+                "inHandle": false,
+                "inBio": true,
+                "inDisplayName": true,
+                "inPronouns": false
+            }
+        ]
+    },
+    "avatarModel": {
+        "listUri": "at://did:plc:000000000000000/app.bsky.graph.list/000000000"
+    }
+}
